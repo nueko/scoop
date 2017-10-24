@@ -1,9 +1,17 @@
 {
     "homepage": "https://www.vagrantup.com/",
-    "version": "1.9.5",
+    "version": "2.0.0",
     "license": "MIT",
-    "url": "https://releases.hashicorp.com/vagrant/1.9.5/vagrant_1.9.5.msi",
-    "hash": "8ce945cd01d1273b628aa101e035716c246dfbddad29cccc8d96c873f77d386b",
+    "architecture": {
+        "64bit": {
+            "url": "https://releases.hashicorp.com/vagrant/2.0.0/vagrant_2.0.0_x86_64.msi",
+            "hash": "0fd2ebaf46d2d0f33a77844ed7a2116158b13872e47877bbb3929ae55d3d104f"
+        },
+        "32bit": {
+            "url": "https://releases.hashicorp.com/vagrant/2.0.0/vagrant_2.0.0_i686.msi",
+            "hash": "9e33c6e0ba25c597e963a2b514818829b9e4ce9ddaf45718be4b0a97da04afd1"
+        }
+    },
     "extract_dir": "HashiCorp/Vagrant",
     "bin": "bin\\vagrant.exe",
     "checkver": {
@@ -11,7 +19,14 @@
         "re": "vagrant_([\\d.]+)</a>"
     },
     "autoupdate": {
-        "url": "https://releases.hashicorp.com/vagrant/$version/vagrant_$version.msi",
+        "architecture": {
+            "64bit": {
+                "url": "https://releases.hashicorp.com/vagrant/$version/vagrant_$version_x86_64.msi"
+            },
+            "32bit": {
+                "url": "https://releases.hashicorp.com/vagrant/$version/vagrant_$version_i686.msi"
+            }
+        },
         "hash": {
             "url": "$baseurl/vagrant_$version_SHA256SUMS"
         }

@@ -1,15 +1,15 @@
 {
     "homepage": "http://www.vim.org",
     "license": "http://vimdoc.sourceforge.net/htmldoc/uganda.html#license",
-    "version": "8.0.0606",
+    "version": "8.0.1213",
     "architecture": {
         "32bit": {
-            "url": "https://github.com/vim/vim-win32-installer/releases/download/v8.0.0606/gvim_8.0.0606_x86.zip",
-            "hash": "74ead5b6cb0c7e072201871909b7588706795c196862ae2f4150e58d7749d4d4"
+            "url": "https://github.com/vim/vim-win32-installer/releases/download/v8.0.1213/gvim_8.0.1213_x86.zip",
+            "hash": "2b7e14e1037267c5f3bb4f01827b126cc24209b74d65aff92ac6a0b034ef1c41"
         },
         "64bit": {
-            "url": "https://github.com/vim/vim-win32-installer/releases/download/v8.0.0606/gvim_8.0.0606_x64.zip",
-            "hash": "0e997f3f6882d72f2c43c16e6ce7717d9c972ce490797217bbbd8ccc204ffa4b"
+            "url": "https://github.com/vim/vim-win32-installer/releases/download/v8.0.1213/gvim_8.0.1213_x64.zip",
+            "hash": "b88ad64ef694b94bdd309a4944b1b3005e65ab00a321ca0145f2c44a1fd5554b"
         }
     },
     "extract_dir": "vim\\vim80",
@@ -17,16 +17,13 @@
         "vim.exe",
         "gvim.exe"
     ],
-    "post_install": "if(!(test-path ~\\.vimrc)) {
-        cp \"$dir\\vimrc_example.vim\" ~\\.vimrc
-        \"set shell=$((gcm powershell).path)\\ -executionpolicy\\ bypass\" | out-file  ~\\.vimrc -append -encoding ascii
-        echo '~/.vimrc was created with your shell set to Powershell.'
-    } else { echo '~/.vimrc exists, skipping' }",
+    "post_install": "if( !(test-path ~\\.vimrc) -and !(test-path ~\\_vimrc) -and !(test-path ~\\vimfiles\\vimrc) -and !(test-path $env:VIM\\_vimrc) ) {
+        cp \"$dir\\vimrc_example.vim\" ~\\_vimrc
+        \"set shell=$((gcm powershell).path)\\ -executionpolicy\\ bypass\" | out-file  ~\\_vimrc -append -encoding ascii
+        echo 'Default vimrc file created in ~/_vimrc, with shell set to PowerShell.'
+    } else { echo 'Existing vimrc file found, no default configuration created' }",
     "checkver": {
         "github": "https://github.com/vim/vim-win32-installer"
-    },
-    "env_set": {
-        "VIM": "$dir"
     },
     "autoupdate": {
         "architecture": {

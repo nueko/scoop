@@ -1,17 +1,17 @@
 {
-    "homepage": "http://nodejs.org",
-    "version": "8.0.0",
+    "homepage": "https://nodejs.org",
+    "version": "8.7.0",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://nodejs.org/dist/v8.0.0/node-v8.0.0-win-x64.7z",
-            "hash": "9bc84644228ab1e96dfb78eea4144c7c9732ccd33b44a4b8994fd232fafa19b5",
-            "extract_dir": "node-v8.0.0-win-x64"
+            "url": "https://nodejs.org/dist/v8.7.0/node-v8.7.0-win-x64.7z",
+            "hash": "27a5a69c7ffae89a3846b778f970643cc53e45e53e16801921aa4ea69e924695",
+            "extract_dir": "node-v8.7.0-win-x64"
         },
         "32bit": {
-            "url": "https://nodejs.org/dist/v8.0.0/node-v8.0.0-win-x86.7z",
-            "hash": "4c4d1c21a56ab4da6a24543ee27bd2d22fbbf5fcae9ccc3422869ad45754809c",
-            "extract_dir": "node-v8.0.0-win-x86"
+            "url": "https://nodejs.org/dist/v8.7.0/node-v8.7.0-win-x86.7z",
+            "hash": "f0bd40e04415750b1289403a37eb15d86da77e99132fe6a7c637c4c620c41ef1",
+            "extract_dir": "node-v8.7.0-win-x86"
         }
     },
     "persist": [
@@ -27,8 +27,8 @@
         Set-Content -Value \"prefix=$persist_dir\\bin`ncache=$persist_dir\\cache\" -Path $dir\\node_modules\\npm\\npmrc
     ",
     "checkver": {
-        "url": "https://nodejs.org/en/download/current/",
-        "re": "Current version: <strong>v([\\d.]+)</strong>"
+        "url": "https://nodejs.org/dist/latest/",
+        "re": "node-v([\\d.]+)-x86.msi"
     },
     "autoupdate": {
         "architecture": {

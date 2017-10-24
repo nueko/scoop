@@ -1,9 +1,9 @@
 {
     "homepage": "https://kotlinlang.org/",
-    "version": "1.1.2",
+    "version": "1.1.51",
     "license": "Apache 2.0",
-    "url": "https://github.com/JetBrains/kotlin/releases/download/v1.1.2/kotlin-compiler-1.1.2.zip",
-    "hash": "cb6d30b14adb0067477042e12c1d15e5a26cf80ef6a115e248ed4a89cbf6cf4e",
+    "url": "https://github.com/JetBrains/kotlin/releases/download/v1.1.51/kotlin-compiler-1.1.51.zip",
+    "hash": "0b346b138390eb0235a6700f52cc1e2b491cf1f6db179a6d06a279ef1af57ccd",
     "extract_dir": "kotlinc",
     "bin": [
         "bin\\kotlin.bat",

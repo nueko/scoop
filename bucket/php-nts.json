@@ -1,15 +1,15 @@
 {
     "homepage": "http://windows.php.net",
-    "version": "7.1.5",
-    "license": "http://www.php.net/license/",
+    "version": "7.1.10",
+    "license": "https://php.net/license/",
     "architecture": {
         "64bit": {
-            "url": "http://windows.php.net/downloads/releases/php-7.1.5-nts-Win32-VC14-x64.zip",
-            "hash": "sha1:1eb36b0cec50aae4a3935db986ea6c38656fdd06"
+            "url": "http://windows.php.net/downloads/releases/php-7.1.10-nts-Win32-VC14-x64.zip",
+            "hash": "341b1e88d6304d23d8799ae6c98561b4a545d1aa97ae44b38c3a38b32067c252"
         },
         "32bit": {
-            "url": "http://windows.php.net/downloads/releases/php-7.1.5-nts-Win32-VC14-x86.zip",
-            "hash": "sha1:cc9c1db26dd67f94173f92a6fce2a22bbefe0fcd"
+            "url": "http://windows.php.net/downloads/releases/php-7.1.10-nts-Win32-VC14-x86.zip",
+            "hash": "b795cc120ec887aa42a3fa8dc621db17bb24336b1490547af28dd575ca52cd3b"
         }
     },
     "bin": [
@@ -55,7 +55,7 @@ if (!(Test-Path \"$dir\\cli\\conf.d\")) {
             }
         },
         "hash": {
-            "url": "$baseurl/sha1sum.txt"
+            "url": "$baseurl/sha256sum.txt"
         }
     },
     "suggest": {

@@ -1,15 +1,15 @@
 {
     "homepage": "http://www.llvm.org",
-    "version": "4.0.0",
+    "version": "5.0.0",
     "license": "University of Illinois/NCSA Open Source License",
     "architecture": {
         "32bit": {
-            "url": "http://releases.llvm.org/4.0.0/LLVM-4.0.0-win32.exe",
-            "hash": "aabe2a31182d9adce8146c86fe92e19d911b7cc1cb240cdb790f314c819c92e2"
+            "url": "http://releases.llvm.org/5.0.0/LLVM-5.0.0-win32.exe",
+            "hash": "b7a7565680d3aad66c17f789c115b738be4af3bc16e2589923f7a940f32439f6"
         },
         "64bit": {
-            "url": "http://releases.llvm.org/4.0.0/LLVM-4.0.0-win64.exe",
-            "hash": "9bb800e42a4568c7a6e217dac1b613741ee9811eea2fa65ca8c20702728003e9"
+            "url": "http://releases.llvm.org/5.0.0/LLVM-5.0.0-win64.exe",
+            "hash": "2b93843bd15623dc0e1bb52af85f2c0b41a89b6c1e613e6e6bd0da597c2639eb"
         }
     },
     "installer": {

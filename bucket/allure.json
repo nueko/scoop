@@ -1,24 +1,19 @@
 {
     "homepage": "https://github.com/allure-framework/allure2",
-    "version": "2.1.0",
+    "version": "2.4.1",
     "license": "https://github.com/allure-framework/allure2/blob/master/LICENSE",
-    "url": "https://dl.bintray.com/qameta/generic/io/qameta/allure/allure/2.1.0/allure-2.1.0.zip",
-    "hash": "9a3ec0e52bacb7fe7f38fa720f01e2fde4784f204de6457f2896cd987d399c22",
-    "extract_dir": "allure-2.1.0",
+    "url": "https://dl.bintray.com/qameta/generic/io/qameta/allure/allure/2.4.1/allure-2.4.1.zip",
+    "hash": "8e84dd3dc664e79a0b8dd8c2d37a0c0ad0ecce91a8c7eec4da1bebed1f50897a",
+    "extract_dir": "allure-2.4.1",
     "bin": "bin\\allure.bat",
     "env_set": {
         "ALLURE_HOME": "$dir"
     },
-    "persist": [
-        "config",
-        "plugins"
-    ],
     "checkver": "github",
     "autoupdate": {
         "url": "https://dl.bintray.com/qameta/generic/io/qameta/allure/allure/$version/allure-$version.zip",
         "extract_dir": "allure-$version",
         "hash": {
-            "mode": "extract",
             "url": "$url.sha256"
         }
     }

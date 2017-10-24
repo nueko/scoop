@@ -13,7 +13,8 @@ param(
     [String]$dir,
     [Switch]$push = $false,
     [Switch]$request = $false,
-    [Switch]$help = $false
+    [Switch]$help = $false,
+    [string[]]$specialSnowflakes
 )
 
 if(!$dir) { $dir = "$psscriptroot\..\bucket" }
@@ -122,6 +123,12 @@ if($push -eq $true) {
 }
 
 . "$psscriptroot\checkver.ps1" * -update -dir $dir
+if($specialSnowflakes) {
+    write-host -f DarkCyan "Forcing update on our special snowflakes: $($specialSnowflakes -join ',')"
+    $specialSnowflakes -split ',' | % {
+        . "$psscriptroot\checkver.ps1" $_ -update -forceUpdate -dir $dir
+    }
+}
 
 hub diff --name-only | % {
     $manifest = $_
@@ -140,7 +147,15 @@ hub diff --name-only | % {
     if($push -eq $true) {
         Write-Host -f DarkCyan "Creating update $app ($version) ..."
         execute "hub add $manifest"
-        execute "hub commit -m 'Update $app to version $version'"
+
+        # detect if file was staged, because it's not when only LF or CRLF have changed
+        $status = iex "hub status --porcelain -uno"
+        $status = $status | select-object -first 1
+        if($status -and $status.StartsWith('M  ') -and $status.EndsWith("$app.json")) {
+            execute "hub commit -m 'Update $app to version $version'"
+        } else {
+            Write-Host -f Yellow "Skipping $app because only LF/CRLF changes were detected ..."
+        }
     } else {
         pull_requests $json $app $upstream $manifest
     }

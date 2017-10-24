@@ -1,15 +1,15 @@
 {
     "homepage": "https://www.vaultproject.io",
     "license": "Mozilla Public License 2.0",
-    "version": "0.7.2",
+    "version": "0.8.3",
     "architecture": {
         "64bit": {
-            "url": "https://releases.hashicorp.com/vault/0.7.2/vault_0.7.2_windows_amd64.zip",
-            "hash": "718139c6f4bd918d5f94cd380b7b8db4664915d8d64acba0792a31ba102025a8"
+            "url": "https://releases.hashicorp.com/vault/0.8.3/vault_0.8.3_windows_amd64.zip",
+            "hash": "9cdef19513bc0e8d51a2764505bbcda3b5caa3db83f4fbe2c64cd2d0d6e5779c"
         },
         "32bit": {
-            "url": "https://releases.hashicorp.com/vault/0.7.2/vault_0.7.2_windows_386.zip",
-            "hash": "0ed812c3a16720058c6e92a9a552ccc5d73c6d8d6fbd89e372a19e57a7b0a185"
+            "url": "https://releases.hashicorp.com/vault/0.8.3/vault_0.8.3_windows_386.zip",
+            "hash": "1fb1d837a085e1feceae00753b496735db746674ad3c55938f50545d1607dc32"
         }
     },
     "bin": [

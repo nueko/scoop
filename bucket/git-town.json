@@ -1,15 +1,15 @@
 {
     "homepage": "http://www.git-town.com/",
-    "version": "4.1.0",
+    "version": "5.0.0",
     "license": "MIT",
     "architecture": {
         "32bit": {
-            "url": "https://github.com/Originate/git-town/releases/download/v4.1.0/git-town-windows-386.exe#/git-town.exe",
-            "hash": "31b2b7dbde19c2502012be014d04e00e0f22d8e5484cac6713c2e2d3a40e1bf8"
+            "url": "https://github.com/Originate/git-town/releases/download/v5.0.0/git-town-windows-386.exe#/git-town.exe",
+            "hash": "cd8a98483bf7826f9a86d4c33e6282fd11baf03f5df734113f68c2ac7163d004"
         },
         "64bit": {
-            "url": "https://github.com/Originate/git-town/releases/download/v4.1.0/git-town-windows-amd64.exe#/git-town.exe",
-            "hash": "5ce7f41e77fe288fe5ab9929d225903d722f512caad0e3c64bca6c5118ab6ce7"
+            "url": "https://github.com/Originate/git-town/releases/download/v5.0.0/git-town-windows-amd64.exe#/git-town.exe",
+            "hash": "a9abcd689fb89a91738bf8e00a1e460ae49c0b0eae6d5bd0224191d8ff580bf4"
         }
     },
     "depends": "git",
