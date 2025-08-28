@@ -1,105 +1,85 @@
 # Usage: scoop status
 # Summary: Show status and check for new app versions
+# Help: Options:
+#   -l, --local         Checks the status for only the locally installed apps,
+#                       and disables remote fetching/checking for Scoop and buckets
 
-. "$psscriptroot\..\lib\core.ps1"
-. "$psscriptroot\..\lib\manifest.ps1"
-. "$psscriptroot\..\lib\buckets.ps1"
-. "$psscriptroot\..\lib\versions.ps1"
-. "$psscriptroot\..\lib\depends.ps1"
-. "$psscriptroot\..\lib\config.ps1"
-. "$psscriptroot\..\lib\git.ps1"
-
-reset_aliases
+. "$PSScriptRoot\..\lib\manifest.ps1" # 'manifest' 'parse_json' "install_info"
+. "$PSScriptRoot\..\lib\versions.ps1" # 'Select-CurrentVersion'
+. "$PSScriptRoot\..\lib\download.ps1" # 'Get-UserAgent'
 
 # check if scoop needs updating
-$currentdir = fullpath $(versiondir 'scoop' 'current')
+$currentdir = versiondir 'scoop' 'current'
 $needs_update = $false
-
-if(test-path "$currentdir\.git") {
-    pushd $currentdir
-    git_fetch -q origin
-    $commits = $(git log "HEAD..origin/$(scoop config SCOOP_BRANCH)" --oneline)
-    if($commits) { $needs_update = $true }
-    popd
-}
-else {
-    $needs_update = $true
+$bucket_needs_update = $false
+$script:network_failure = $false
+$no_remotes = $args[0] -eq '-l' -or $args[0] -eq '--local'
+if (!(Get-Command git -ErrorAction SilentlyContinue)) { $no_remotes = $true }
+$list = @()
+if (!(Get-FormatData ScoopStatus)) {
+    Update-FormatData "$PSScriptRoot\..\supporting\formats\ScoopTypes.Format.ps1xml"
 }
 
-if($needs_update) {
-    "Scoop is out of date. Run 'scoop update' to get the latest changes."
+function Test-UpdateStatus($repopath) {
+    if (Test-Path "$repopath\.git") {
+        Invoke-Git -Path $repopath -ArgumentList @('fetch', '-q', 'origin')
+        $script:network_failure = 128 -eq $LASTEXITCODE
+        $branch  = Invoke-Git -Path $repopath -ArgumentList @('branch', '--show-current')
+        $commits = Invoke-Git -Path $repopath -ArgumentList @('log', "HEAD..origin/$branch", '--oneline')
+        if ($commits) { return $true }
+        else { return $false }
+    } else {
+        return $true
+    }
 }
-else { "Scoop is up to date."}
 
-$failed = @()
-$old = @()
-$removed = @()
-$missing_deps = @()
+if (!$no_remotes) {
+    $needs_update = Test-UpdateStatus $currentdir
+    foreach ($bucket in Get-LocalBucket) {
+        if (Test-UpdateStatus (Find-BucketDirectory $bucket -Root)) {
+            $bucket_needs_update = $true
+            break
+        }
+    }
+}
 
-$true, $false | % { # local and global apps
+if ($needs_update) {
+    warn "Scoop out of date. Run 'scoop update' to get the latest changes."
+} elseif ($bucket_needs_update) {
+    warn "Scoop bucket(s) out of date. Run 'scoop update' to get the latest changes."
+} elseif (!$script:network_failure -and !$no_remotes) {
+    success 'Scoop is up to date.'
+}
+
+$true, $false | ForEach-Object { # local and global apps
     $global = $_
     $dir = appsdir $global
-    if(!(test-path $dir)) { return }
+    if (!(Test-Path $dir)) { return }
 
-    gci $dir | ? name -ne 'scoop' | % {
+    Get-ChildItem $dir | Where-Object name -NE 'scoop' | ForEach-Object {
         $app = $_.name
-        $version = current_version $app $global
-        if($version) {
-            $install_info = install_info $app $version $global
-        }
+        $status = app_status $app $global
+        if (!$status.outdated -and !$status.failed -and !$status.deprecated -and !$status.removed -and !$status.missing_deps) { return }
 
-        if(!$install_info -or !$version) {
-            $failed += @{ $app = $version }; return
-        }
-
-        $manifest = manifest $app $install_info.bucket $install_info.url
-        if(!$manifest) { $removed += @{ $app = $version }; return }
-
-        if((compare_versions $manifest.version $version) -gt 0) {
-            $old += @{ $app = @($version, $manifest.version) }
-        }
-
-        $deps = @(runtime_deps $manifest) | ? { !(installed $_) }
-        if($deps) {
-            $missing_deps += ,(@($app) + @($deps))
-        }
+        $item = [ordered]@{}
+        $item.Name = $app
+        $item.'Installed Version' = $status.version
+        $item.'Latest Version' = if ($status.outdated) { $status.latest_version } else { "" }
+        $item.'Missing Dependencies' = $status.missing_deps -Split ' ' -Join ' | '
+        $info = @()
+        if ($status.failed)     { $info += 'Install failed' }
+        if ($status.hold)       { $info += 'Held package' }
+        if ($status.deprecated) { $info += 'Deprecated' }
+        if ($status.removed)    { $info += 'Manifest removed' }
+        $item.Info = $info -join ', '
+        $list += [PSCustomObject]$item
     }
 }
 
-
-
-if($old) {
-    "Updates are available for:"
-    $old.keys | % {
-        $versions = $old.$_
-        "    $_`: $($versions[0]) -> $($versions[1])"
-    }
+if ($list.Length -eq 0 -and !$needs_update -and !$bucket_needs_update -and !$script:network_failure) {
+    success 'Everything is ok!'
 }
 
-if($removed) {
-    "These app manifests have been removed:"
-    $removed.keys | % {
-        "    $_"
-    }
-}
-
-if($failed) {
-    "These apps failed to install:"
-    $failed.keys | % {
-        "    $_"
-    }
-}
-
-if($missing_deps) {
-    "Missing runtime dependencies:"
-    $missing_deps | % {
-        $app, $deps = $_
-        "    '$app' requires '$([string]::join("', '", $deps))'"
-    }
-}
-
-if(!$old -and !$removed -and !$failed -and !$missing_deps) {
-    success "Everything is ok!"
-}
+$list | Add-Member -TypeName ScoopStatus -PassThru
 
 exit 0

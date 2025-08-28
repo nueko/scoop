@@ -3,102 +3,136 @@
 # Help: e.g. The usual way to install an app (uses your local 'buckets'):
 #      scoop install git
 #
+# To install a different version of the app
+# (note that this will auto-generate the manifest using current version):
+#      scoop install gh@2.7.0
+#
 # To install an app from a manifest at a URL:
-#      scoop install https://raw.github.com/lukesampson/scoop/master/bucket/runat.json
+#      scoop install https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/runat.json
+#
+# To install a different version of the app from a URL:
+#       scoop install https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/neovim.json@0.9.0
 #
 # To install an app from a manifest on your computer
 #      scoop install \path\to\app.json
 #
-# When installing from your computer, you can leave the .json extension off if you like.
+# To install an app from a manifest on your computer
+#      scoop install \path\to\app.json@version
 #
 # Options:
-#   -a, --arch <32bit|64bit>  Use the specified architecture, if the app supports it
-#   -i, --independent         Don't install dependencies automatically
-#   -g, --global              Install the app globally
+#   -g, --global                    Install the app globally
+#   -i, --independent               Don't install dependencies automatically
+#   -k, --no-cache                  Don't use the download cache
+#   -s, --skip-hash-check           Skip hash validation (use with caution!)
+#   -u, --no-update-scoop           Don't update Scoop before installing if it's outdated
+#   -a, --arch <32bit|64bit|arm64>  Use the specified architecture, if the app supports it
 
-. "$psscriptroot\..\lib\core.ps1"
-. "$psscriptroot\..\lib\manifest.ps1"
-. "$psscriptroot\..\lib\buckets.ps1"
-. "$psscriptroot\..\lib\decompress.ps1"
-. "$psscriptroot\..\lib\install.ps1"
-. "$psscriptroot\..\lib\shortcuts.ps1"
-. "$psscriptroot\..\lib\psmodules.ps1"
-. "$psscriptroot\..\lib\versions.ps1"
-. "$psscriptroot\..\lib\help.ps1"
-. "$psscriptroot\..\lib\getopt.ps1"
-. "$psscriptroot\..\lib\depends.ps1"
-. "$psscriptroot\..\lib\config.ps1"
+. "$PSScriptRoot\..\lib\getopt.ps1"
+. "$PSScriptRoot\..\lib\json.ps1" # 'autoupdate.ps1' 'manifest.ps1' (indirectly)
+. "$PSScriptRoot\..\lib\autoupdate.ps1" # 'generate_user_manifest' (indirectly)
+. "$PSScriptRoot\..\lib\manifest.ps1" # 'generate_user_manifest' 'Get-Manifest' 'Select-CurrentVersion' (indirectly)
+. "$PSScriptRoot\..\lib\system.ps1"
+. "$PSScriptRoot\..\lib\install.ps1"
+. "$PSScriptRoot\..\lib\download.ps1"
+. "$PSScriptRoot\..\lib\decompress.ps1"
+. "$PSScriptRoot\..\lib\shortcuts.ps1"
+. "$PSScriptRoot\..\lib\psmodules.ps1"
+. "$PSScriptRoot\..\lib\versions.ps1"
+. "$PSScriptRoot\..\lib\depends.ps1"
+if (get_config USE_SQLITE_CACHE) {
+    . "$PSScriptRoot\..\lib\database.ps1"
+}
 
-reset_aliases
+$opt, $apps, $err = getopt $args 'giksua:' 'global', 'independent', 'no-cache', 'skip-hash-check', 'no-update-scoop', 'arch='
+if ($err) { "scoop install: $err"; exit 1 }
 
-function ensure_not_installed($app, $global) {
-    if(installed $app $global) {
-        $global_flag = $null;
-        if($global){ $global_flag = ' --global' }
+$global = $opt.g -or $opt.global
+$check_hash = !($opt.s -or $opt.'skip-hash-check')
+$independent = $opt.i -or $opt.independent
+$use_cache = !($opt.k -or $opt.'no-cache')
+$architecture = Get-DefaultArchitecture
+try {
+    $architecture = Format-ArchitectureString ($opt.a + $opt.arch)
+} catch {
+    abort "ERROR: $_"
+}
 
-        $version = @(versions $app $global)[-1]
-        if(!(install_info $app $version $global)) {
-            abort "It looks like a previous installation of $app failed.`nRun 'scoop uninstall $app$global_flag' before retrying the install."
-        }
-        abort "'$app' ($version) is already installed.`nUse 'scoop update $app$global_flag' to install a new version."
+if (!$apps) { error '<app> missing'; my_usage; exit 1 }
+
+if ($global -and !(is_admin)) {
+    abort 'ERROR: you need admin rights to install global apps'
+}
+
+if (is_scoop_outdated) {
+    if ($opt.u -or $opt.'no-update-scoop') {
+        warn "Scoop is out of date."
+    } else {
+        & "$PSScriptRoot\scoop-update.ps1"
     }
 }
 
-$opt, $apps, $err = getopt $args 'gia:' 'global', 'independent', 'arch='
-if($err) { "scoop install: $err"; exit 1 }
+ensure_none_failed $apps
 
-$global = $opt.g -or $opt.global
-$independent = $opt.i -or $opt.independent
-$architecture = ensure_architecture ($opt.a + $opt.arch)
-
-if(!$apps) { 'ERROR: <app> missing'; my_usage; exit 1 }
-
-if($global -and !(is_admin)) {
-    'ERROR: you need admin rights to install global apps'; exit 1
-}
-
-if($apps.length -eq 1) {
-    ensure_not_installed $apps $global
+if ($apps.length -eq 1) {
+    $app, $null, $version = parse_app $apps
+    if ($app.EndsWith('.json')) {
+        $app = [System.IO.Path]::GetFileNameWithoutExtension($app)
+    }
+    $curVersion = Select-CurrentVersion -AppName $app -Global:$global
+    if ($null -eq $version -and $curVersion) {
+        warn "'$app' ($curVersion) is already installed.`nUse 'scoop update $app$(if ($global) { ' --global' })' to install a new version."
+        exit 0
+    }
 }
 
 # get any specific versions that we need to handle first
-$specific_versions = $apps | Where-Object { is_app_with_specific_version $_ }
+$specific_versions = $apps | Where-Object {
+    $null, $null, $version = parse_app $_
+    return $null -ne $version
+}
 
 # compare object does not like nulls
-if ($specific_versions.length -gt 0) {
+if ($specific_versions.Count -gt 0) {
     $difference = Compare-Object -ReferenceObject $apps -DifferenceObject $specific_versions -PassThru
 } else {
     $difference = $apps
 }
 
 $specific_versions_paths = $specific_versions | ForEach-Object {
-    $appWithVersion = get_app_with_version $_
-    $name           = $appWithVersion.app
-    $version        = $appWithVersion.version
-
-    if (installed_manifest $name $version) {
-        abort "'$name' ($version) is already installed.`nUse 'scoop update $name$global_flag' to install a new version."
+    $app, $bucket, $version = parse_app $_
+    if (installed_manifest $app $version) {
+        warn "'$app' ($version) is already installed.`nUse 'scoop update $app$(if ($global) { ' --global' })' to install a new version."
+        continue
     }
 
-    generate_user_manifest $name $version
+    generate_user_manifest $app $bucket $version
 }
-$apps = @(($specific_versions_paths + $difference) | Where-Object { $_ } | Sort-Object -Unique)
+$apps = @((@($specific_versions_paths) + $difference) | Where-Object { $_ } | Select-Object -Unique)
 
 # remember which were explictly requested so that we can
 # differentiate after dependencies are added
 $explicit_apps = $apps
 
-if(!$independent) {
-    $apps = install_order $apps $architecture # adds dependencies
+if (!$independent) {
+    $apps = $apps | Get-Dependency -Architecture $architecture | Select-Object -Unique # adds dependencies
 }
-ensure_none_failed $apps $global
+ensure_none_failed $apps
 
 $apps, $skip = prune_installed $apps $global
 
-$skip | ? { $explicit_apps -contains $_} | % { warn "$_ is already installed. Skipping." }
+$skip | Where-Object { $explicit_apps -contains $_ } | ForEach-Object {
+    $app, $null, $null = parse_app $_
+    $version = Select-CurrentVersion -AppName $app -Global:$global
+    warn "'$app' ($version) is already installed. Skipping."
+}
 
-$suggested = @{};
-$apps | % { install_app $_ $architecture $global $suggested }
+$suggested = @{ };
+if ((Test-Aria2Enabled) -and (get_config 'aria2-warning-enabled' $true)) {
+    warn "Scoop uses 'aria2c' for multi-connection downloads."
+    warn "Should it cause issues, run 'scoop config aria2-enabled false' to disable it."
+    warn "To disable this warning, run 'scoop config aria2-warning-enabled false'."
+}
+$apps | ForEach-Object { install_app $_ $architecture $global $suggested $use_cache $check_hash }
 
 show_suggestions $suggested
 

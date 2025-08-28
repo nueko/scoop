@@ -1,57 +1,54 @@
-$modulesdir = "$scoopdir\modules"
-
 function install_psmodule($manifest, $dir, $global) {
     $psmodule = $manifest.psmodule
-    if(!$psmodule) { return }
+    if (!$psmodule) { return }
 
-    if($global) {
-        abort "Installing PowerShell modules globally is not implemented!"
-    }
+    $targetdir = ensure (modulesdir $global)
 
-    $modulesdir = ensure $modulesdir
-    ensure_in_psmodulepath $modulesdir $global
+    ensure_in_psmodulepath $targetdir $global
 
     $module_name = $psmodule.name
-    if(!$module_name) {
+    if (!$module_name) {
         abort "Invalid manifest: The 'name' property is missing from 'psmodule'."
-        return
     }
 
-    $linkfrom = "$modulesdir\$module_name"
-    write-host "Installing PowerShell module '$module_name'"
+    $linkfrom = "$targetdir\$module_name"
+    Write-Host "Installing PowerShell module '$module_name'"
 
-    write-host "Linking $(friendly_path $linkfrom) => $(friendly_path $dir)"
+    Write-Host "Linking $(friendly_path $linkfrom) => $(friendly_path $dir)"
 
-    if(test-path $linkfrom) {
+    if (Test-Path $linkfrom) {
         warn "$(friendly_path $linkfrom) already exists. It will be replaced."
-        cmd /c rmdir $linkfrom
+        Remove-Item -Path $linkfrom -Force -Recurse -ErrorAction SilentlyContinue
     }
 
-    cmd /c mklink /j $linkfrom $dir | out-null
+    New-DirectoryJunction $linkfrom $dir | Out-Null
 }
 
 function uninstall_psmodule($manifest, $dir, $global) {
     $psmodule = $manifest.psmodule
-    if(!$psmodule) { return }
+    if (!$psmodule) { return }
 
     $module_name = $psmodule.name
-    write-host "Uninstalling PowerShell module '$module_name'."
+    Write-Host "Uninstalling PowerShell module '$module_name'."
 
-    $linkfrom = "$modulesdir\$module_name"
-    if(test-path $linkfrom) {
-        write-host "Removing $(friendly_path $linkfrom)"
-        $linkfrom = resolve-path $linkfrom
-        cmd /c rmdir $linkfrom
+    $targetdir = modulesdir $global
+
+    $linkfrom = "$targetdir\$module_name"
+    if (Test-Path $linkfrom) {
+        Write-Host "Removing $(friendly_path $linkfrom)"
+        $linkfrom = Convert-Path $linkfrom
+        Remove-Item -Path $linkfrom -Force -Recurse -ErrorAction SilentlyContinue
     }
 }
 
 function ensure_in_psmodulepath($dir, $global) {
-    $path = env 'psmodulepath' $global
-    $dir = fullpath $dir
-    if($path -notmatch [regex]::escape($dir)) {
-        write-output "Adding $(friendly_path $dir) to $(if($global){'global'}else{'your'}) PowerShell module path."
+    $path = Get-EnvVar -Name 'PSModulePath' -Global:$global
+    if (!$global -and $null -eq $path) {
+        $path = "$env:USERPROFILE\Documents\WindowsPowerShell\Modules"
+    }
+    if ($path -notmatch [Regex]::Escape($dir)) {
+        Write-Output "Adding $(friendly_path $dir) to $(if($global){'global'}else{'your'}) PowerShell module path."
 
-        env 'psmodulepath' $global "$dir;$path" # for future sessions...
-        $env:psmodulepath = "$dir;$env:psmodulepath" # for this session
+        Set-EnvVar -Name 'PSModulePath' -Value "$dir;$path" -Global:$global
     }
 }

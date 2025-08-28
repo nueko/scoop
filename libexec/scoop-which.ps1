@@ -1,38 +1,20 @@
 # Usage: scoop which <command>
-# Summary: Locate a program path
-# Help: Finds the path to a program that was installed with Scoop
+# Summary: Locate a shim/executable (similar to 'which' on Linux)
+# Help: Locate the path to a shim/executable that was installed with Scoop (similar to 'which' on Linux)
 param($command)
-. "$psscriptroot\..\lib\core.ps1"
-. "$psscriptroot\..\lib\help.ps1"
 
-reset_aliases
-
-if(!$command) { 'ERROR: <command> missing'; my_usage; exit 1 }
-
-try { $gcm = gcm "$command" -ea stop } catch { } #
-if(!$gcm) { [console]::error.writeline("'$command' not found"); exit 3 }
-
-$path = "$($gcm.path)"
-$usershims = "$(resolve-path $(shimdir $false))"
-$globalshims = fullpath (shimdir $true) # don't resolve: may not exist
-
-if($path.endswith(".ps1") -and ($path -like "$usershims*" -or $path -like "$globalshims*")) {
-    $shimtext = gc $path
-
-    $exepath = ($shimtext |? { $_.startswith('$path') }).split(' ') | select -Last 1 | iex
-
-    if(![system.io.path]::ispathrooted($exepath)) {
-        # Expand relative path
-        $exepath = resolve-path (join-path (split-path $path) $exepath)
-    }
-
-    friendly_path $exepath
-} elseif($gcm.commandtype -eq 'Alias') {
-    scoop which $gcm.resolvedcommandname
-} else {
-    [console]::error.writeline("Not a scoop shim.")
-    $path
-    exit 2
+if (!$command) {
+    error '<command> missing'
+    my_usage
+    exit 1
 }
 
-exit 0
+$path = Get-CommandPath $command
+
+if ($null -eq $path) {
+    warn "'$command' not found, not a scoop shim, or a broken shim."
+    exit 2
+} else {
+    friendly_path $path
+    exit 0
+}

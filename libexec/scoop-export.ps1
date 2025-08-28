@@ -1,46 +1,23 @@
-# Usage: scoop export > filename
-# Summary: Exports (an importable) list of installed apps
-# Help: Lists all installed apps.
+# Usage: scoop export > scoopfile.json
+# Summary: Exports installed apps, buckets (and optionally configs) in JSON format
+# Help: Options:
+#   -c, --config       Export the Scoop configuration file too
 
-. "$psscriptroot\..\lib\core.ps1"
-. "$psscriptroot\..\lib\versions.ps1"
-. "$psscriptroot\..\lib\manifest.ps1"
-. "$psscriptroot\..\lib\buckets.ps1"
+. "$PSScriptRoot\..\lib\json.ps1" # 'ConvertToPrettyJson'
 
-reset_aliases
+$export = @{}
 
-$local = installed_apps $false | % { @{ name = $_; global = $false } }
-$global = installed_apps $true | % { @{ name = $_; global = $true } }
-
-$apps = @($local) + @($global)
-$count = 0
-
-# json
-# echo "{["
-
-if($apps) {
-    $apps | sort { $_.name } | ? { !$query -or ($_.name -match $query) } | % {
-        $app = $_.name
-        $global = $_.global
-        $ver = current_version $app $global
-        $global_display = $null; if($global) { $global_display = '*global*'}
-
-        # json
-        # $val = "{ 'name': '$app', 'version': '$ver', 'global': $($global.toString().tolower()) }"
-        # if($count -gt 0) {
-        #     " ," + $val
-        # } else {
-        #     "  " + $val
-        # }
-
-        # "$app (v:$ver) global:$($global.toString().tolower())"
-        "$app (v:$ver) $global_display"
-
-        $count++
+if ($args[0] -eq '-c' -or $args[0] -eq '--config') {
+    $export.config = $scoopConfig
+    # Remove machine-specific properties
+    foreach ($prop in 'last_update', 'root_path', 'global_path', 'cache_path', 'alias') {
+        $export.config.PSObject.Properties.Remove($prop)
     }
 }
 
-# json
-# echo "]}"
+$export.buckets = list_buckets
+$export.apps = @(& "$PSScriptRoot\scoop-list.ps1" 6>$null)
+
+$export | ConvertToPrettyJSON
 
 exit 0

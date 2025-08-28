@@ -1,10 +1,14 @@
 {
     "$id": "http://scoop.sh/draft/schema#",
-    "$schema": "http://json-schema.org/draft-04/schema#",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
     "definitions": {
         "hashPattern": {
             "pattern": "^([a-fA-F0-9]{64}|(sha1|sha256|sha512|md5):([a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}|[a-fA-F0-9]{128}))$",
+            "type": "string"
+        },
+        "jsonPathPattern": {
+            "pattern": "^\\$[.\\[].*$",
             "type": "string"
         },
         "hash": {
@@ -27,10 +31,21 @@
             "properties": {
                 "find": {
                     "format": "regex",
+                    "type": "string",
+                    "description": "Same as 'regex'"
+                },
+                "regex": {
+                    "format": "regex",
                     "type": "string"
                 },
                 "jp": {
-                    "pattern": "^\\$\\..*$",
+                    "$ref": "#/definitions/jsonPathPattern",
+                    "description": "Same as 'jsonpath'"
+                },
+                "jsonpath": {
+                    "$ref": "#/definitions/jsonPathPattern"
+                },
+                "xpath": {
                     "type": "string"
                 },
                 "mode": {
@@ -38,7 +53,11 @@
                         "download",
                         "extract",
                         "json",
-                        "rdf"
+                        "xpath",
+                        "rdf",
+                        "metalink",
+                        "fosshub",
+                        "sourceforge"
                     ]
                 },
                 "type": {
@@ -69,6 +88,21 @@
             },
             "type": "object"
         },
+        "hashExtractionOrArrayOfHashExtractions": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/hashExtraction"
+                },
+                {
+                    "items": {
+                        "$ref": "#/definitions/hashExtraction"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": false
+                }
+            ]
+        },
         "architecture": {
             "additionalProperties": false,
             "properties": {
@@ -77,6 +111,12 @@
                 },
                 "checkver": {
                     "$ref": "#/definitions/checkver"
+                },
+                "env_add_path": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
+                "env_set": {
+                    "type": "object"
                 },
                 "extract_dir": {
                     "$ref": "#/definitions/stringOrArrayOfStrings"
@@ -87,18 +127,20 @@
                 "installer": {
                     "$ref": "#/definitions/installer"
                 },
-                "msi": {
-                    "$ref": "#/definitions/stringOrArrayOfStrings",
-                    "description": "Deprecated"
-                },
                 "post_install": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
+                "post_uninstall": {
                     "$ref": "#/definitions/stringOrArrayOfStrings"
                 },
                 "pre_install": {
                     "$ref": "#/definitions/stringOrArrayOfStrings"
                 },
+                "pre_uninstall": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
                 "shortcuts": {
-                    "$ref": "#/definitions/arrayOfArrayOfStrings"
+                    "$ref": "#/definitions/shortcutsArray"
                 },
                 "uninstaller": {
                     "$ref": "#/definitions/uninstaller"
@@ -120,62 +162,122 @@
             "minItems": 1,
             "type": "array"
         },
-        "autoupdate": {
+        "shortcutsArray": {
+            "items": {
+                "items": {
+                    "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 4,
+                "type": "array"
+            },
+            "minItems": 1,
+            "type": "array"
+        },
+        "autoupdateArch": {
+            "type": "object",
             "additionalProperties": false,
             "properties": {
-                "architecture": {
-                    "additionalProperties": false,
-                    "properties": {
-                        "32bit": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "extract_dir": {
-                                    "type": "string"
-                                },
-                                "url": {
-                                    "format": "uri",
-                                    "type": "string"
-                                },
-                                "hash": {
-                                    "$ref": "#/definitions/hashExtraction"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "64bit": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "extract_dir": {
-                                    "type": "string"
-                                },
-                                "url": {
-                                    "format": "uri",
-                                    "type": "string"
-                                },
-                                "hash": {
-                                    "$ref": "#/definitions/hashExtraction"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
+                "bin": {
+                    "$ref": "#/definitions/stringOrArrayOfStringsOrAnArrayOfArrayOfStrings"
+                },
+                "env_add_path": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
+                "env_set": {
                     "type": "object"
                 },
                 "extract_dir": {
-                    "type": "string"
-                },
-                "hash": {
-                    "$ref": "#/definitions/hashExtraction"
-                },
-                "note": {
                     "$ref": "#/definitions/stringOrArrayOfStrings"
                 },
+                "hash": {
+                    "$ref": "#/definitions/hashExtractionOrArrayOfHashExtractions"
+                },
+                "installer": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "file": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "shortcuts": {
+                    "$ref": "#/definitions/shortcutsArray"
+                },
                 "url": {
-                    "format": "uri",
-                    "type": "string"
+                    "$ref": "#/definitions/autoupdateUriOrArrayOfAutoupdateUris"
                 }
-            },
-            "type": "object"
+            }
+        },
+        "autoupdate": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "architecture": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "32bit": {
+                            "$ref": "#/definitions/autoupdateArch"
+                        },
+                        "64bit": {
+                            "$ref": "#/definitions/autoupdateArch"
+                        },
+                        "arm64": {
+                            "$ref": "#/definitions/autoupdateArch"
+                        }
+                    }
+                },
+                "bin": {
+                    "$ref": "#/definitions/stringOrArrayOfStringsOrAnArrayOfArrayOfStrings"
+                },
+                "env_add_path": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
+                "env_set": {
+                    "type": "object"
+                },
+                "extract_dir": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
+                "hash": {
+                    "$ref": "#/definitions/hashExtractionOrArrayOfHashExtractions"
+                },
+                "installer": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "file": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "license": {
+                    "$ref": "#/definitions/license"
+                },
+                "notes": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
+                "persist": {
+                    "$ref": "#/definitions/stringOrArrayOfStringsOrAnArrayOfArrayOfStrings"
+                },
+                "psmodule": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "shortcuts": {
+                    "$ref": "#/definitions/shortcutsArray"
+                },
+                "url": {
+                    "$ref": "#/definitions/autoupdateUriOrArrayOfAutoupdateUris"
+                }
+            }
         },
         "checkver": {
             "anyOf": [
@@ -192,6 +294,11 @@
                         },
                         "re": {
                             "format": "regex",
+                            "type": "string",
+                            "description": "Same as 'regex'"
+                        },
+                        "regex": {
+                            "format": "regex",
                             "type": "string"
                         },
                         "url": {
@@ -199,8 +306,48 @@
                             "type": "string"
                         },
                         "jp": {
-                            "pattern": "^\\$\\..*$",
+                            "$ref": "#/definitions/jsonPathPattern",
+                            "description": "Same as 'jsonpath'"
+                        },
+                        "jsonpath": {
+                            "$ref": "#/definitions/jsonPathPattern"
+                        },
+                        "xpath": {
                             "type": "string"
+                        },
+                        "reverse": {
+                            "description": "Reverse the order of regex matches",
+                            "type": "boolean"
+                        },
+                        "replace": {
+                            "description": "Allows rearrange the regexp matches",
+                            "type": "string"
+                        },
+                        "useragent": {
+                            "type": "string"
+                        },
+                        "script": {
+                            "$ref": "#/definitions/stringOrArrayOfStrings",
+                            "description": "Custom PowerShell script to retrieve application version using more complex approach."
+                        },
+                        "sourceforge": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "project": {
+                                            "type": "string"
+                                        },
+                                        "path": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
                         }
                     },
                     "type": "object"
@@ -220,8 +367,11 @@
                 "file": {
                     "type": "string"
                 },
+                "script": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
+                },
                 "keep": {
-                    "type": "string"
+                    "type": "boolean"
                 }
             },
             "type": "object"
@@ -261,10 +411,22 @@
                 },
                 "file": {
                     "type": "string"
+                },
+                "script": {
+                    "$ref": "#/definitions/stringOrArrayOfStrings"
                 }
             },
-            "required": [
-                "file"
+            "oneOf": [
+                {
+                    "required": [
+                        "file"
+                    ]
+                },
+                {
+                    "required": [
+                        "script"
+                    ]
+                }
             ],
             "type": "object"
         },
@@ -290,12 +452,86 @@
                     "uniqueItems": true
                 }
             ]
+        },
+        "autoupdateUriOrArrayOfAutoupdateUris": {
+            "anyOf": [
+                {
+                    "format": "uri",
+                    "type": "string"
+                },
+                {
+                    "items": {
+                        "format": "uri",
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                }
+            ]
+        },
+        "licenseIdentifiers": {
+            "type": "string",
+            "description": "License identifier based on SPDX License List https://spdx.org/licenses/",
+            "examples": [
+                "Apache-2.0",
+                "BSD-3-Clause",
+                "Freeware",
+                "GPL-2.0-only",
+                "GPL-2.0-or-later",
+                "GPL-3.0-only",
+                "GPL-3.0-or-later",
+                "ISC",
+                "LGPL-2.0-only",
+                "LGPL-2.0-or-later",
+                "LGPL-2.1-only",
+                "LGPL-2.1-or-later",
+                "LGPL-3.0-only",
+                "LGPL-3.0-or-later",
+                "MIT",
+                "MS-PL",
+                "Proprietary",
+                "Public Domain",
+                "Shareware",
+                "Unlicense"
+            ]
+        },
+        "license": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/licenseIdentifiers"
+                },
+                {
+                    "additionalProperties": false,
+                    "properties": {
+                        "url": {
+                            "format": "uri",
+                            "type": "string"
+                        },
+                        "identifier": {
+                            "$ref": "#/definitions/licenseIdentifiers"
+                        }
+                    },
+                    "required": [
+                        "identifier"
+                    ],
+                    "type": "object"
+                }
+            ]
         }
     },
     "properties": {
+        "$schema": {
+            "type": "string",
+            "format": "uri"
+        },
         "_comment": {
-            "description": "Undocumented: only found in scoop/git* and 6 manifests in scoop-extras",
-            "type": "string"
+            "description": "Deprecated. Use ## instead.",
+            "$ref": "#/definitions/stringOrArrayOfStrings"
+        },
+        "##": {
+            "description": "A comment.",
+            "$ref": "#/definitions/stringOrArrayOfStrings"
         },
         "architecture": {
             "additionalProperties": false,
@@ -304,6 +540,9 @@
                     "$ref": "#/definitions/architecture"
                 },
                 "64bit": {
+                    "$ref": "#/definitions/architecture"
+                },
+                "arm64": {
                     "$ref": "#/definitions/architecture"
                 }
             },
@@ -322,14 +561,13 @@
             "$ref": "#/definitions/checkver"
         },
         "cookie": {
-            "description": "Undocumented: only found in scoop-extras/oraclejdk*",
+            "description": "Undocumented: Found at https://github.com/se35710/scoop-java/search?l=JSON&q=cookie",
             "type": "object"
         },
         "depends": {
             "$ref": "#/definitions/stringOrArrayOfStrings"
         },
         "description": {
-            "description": "Undocumented: only found in scoop/gibo",
             "type": "string"
         },
         "env_add_path": {
@@ -342,8 +580,7 @@
             "$ref": "#/definitions/stringOrArrayOfStrings"
         },
         "extract_to": {
-            "$ref": "#/definitions/stringOrArrayOfStrings",
-            "description": "Undocumented: only found in scoop/ruby*"
+            "$ref": "#/definitions/stringOrArrayOfStrings"
         },
         "hash": {
             "$ref": "#/definitions/hash"
@@ -353,18 +590,14 @@
             "type": "string"
         },
         "innosetup": {
-            "description": "Undocumented: only found in 6 manifests in scoop",
+            "description": "True if the installer InnoSetup based. Found in https://github.com/ScoopInstaller/Main/search?l=JSON&q=innosetup",
             "type": "boolean"
         },
         "installer": {
             "$ref": "#/definitions/installer"
         },
         "license": {
-            "type": "string"
-        },
-        "msi": {
-            "$ref": "#/definitions/stringOrArrayOfStrings",
-            "description": "Deprecated"
+            "$ref": "#/definitions/license"
         },
         "notes": {
             "$ref": "#/definitions/stringOrArrayOfStrings"
@@ -372,7 +605,13 @@
         "post_install": {
             "$ref": "#/definitions/stringOrArrayOfStrings"
         },
+        "post_uninstall": {
+            "$ref": "#/definitions/stringOrArrayOfStrings"
+        },
         "pre_install": {
+            "$ref": "#/definitions/stringOrArrayOfStrings"
+        },
+        "pre_uninstall": {
             "$ref": "#/definitions/stringOrArrayOfStrings"
         },
         "psmodule": {
@@ -385,7 +624,7 @@
             "type": "object"
         },
         "shortcuts": {
-            "$ref": "#/definitions/arrayOfArrayOfStrings"
+            "$ref": "#/definitions/shortcutsArray"
         },
         "suggest": {
             "additionalProperties": false,
@@ -403,12 +642,42 @@
             "$ref": "#/definitions/uriOrArrayOfUris"
         },
         "version": {
-            "pattern": "^[\\w\\.\\-_]+$",
+            "pattern": "^[\\w\\.\\-+_]+$",
             "type": "string"
         }
     },
+    "if": {
+        "properties": {
+            "architecture": {
+                "properties": {
+                    "64bit": {
+                        "properties": {
+                            "url": false
+                        }
+                    },
+                    "32bit": {
+                        "properties": {
+                            "url": false
+                        }
+                    },
+                    "arm64": {
+                        "properties": {
+                            "url": false
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "then": {
+        "required": [
+            "url"
+        ]
+    },
     "required": [
-        "version"
+        "version",
+        "homepage",
+        "license"
     ],
     "title": "scoop app manifest schema",
     "type": "object"

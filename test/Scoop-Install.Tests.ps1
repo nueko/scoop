@@ -1,142 +1,102 @@
-. "$psscriptroot\..\lib\core.ps1"
-. "$psscriptroot\..\lib\manifest.ps1"
-. "$psscriptroot\..\lib\install.ps1"
-. "$psscriptroot\..\lib\unix.ps1"
-. "$psscriptroot\Scoop-TestLib.ps1"
+BeforeAll {
+    . "$PSScriptRoot\Scoop-TestLib.ps1"
+    . "$PSScriptRoot\..\lib\core.ps1"
+    . "$PSScriptRoot\..\lib\system.ps1"
+    . "$PSScriptRoot\..\lib\manifest.ps1"
+    . "$PSScriptRoot\..\lib\install.ps1"
+}
 
-$isUnix = is_unix
-
-describe "ensure_architecture" {
-    it "should keep correct architectures" {
-        ensure_architecture "32bit" | Should be "32bit"
-        ensure_architecture "64bit" | Should be "64bit"
-    }
-
-    it "should fallback to the default architecture on empty input" {
-        ensure_architecture "" | Should be $(default_architecture)
-        ensure_architecture $null | Should be $(default_architecture)
-    }
-
-    it "should show an error with an invalid architecture" {
-        Mock abort
-
-        ensure_architecture "PPC" | Should be $null
-        Assert-MockCalled abort -Times 1
+Describe 'appname_from_url' -Tag 'Scoop' {
+    It 'should extract the correct name' {
+        appname_from_url 'https://example.org/directory/foobar.json' | Should -Be 'foobar'
     }
 }
 
-describe "appname_from_url" {
-    it "should extract the correct name" {
-        appname_from_url "https://example.org/directory/foobar.json" | Should be "foobar"
+Describe 'is_in_dir' -Tag 'Scoop', 'Windows' {
+    It 'should work correctly' {
+        is_in_dir 'C:\test' 'C:\foo' | Should -BeFalse
+        is_in_dir 'C:\test' 'C:\test\foo\baz.zip' | Should -BeTrue
+        is_in_dir "$PSScriptRoot\..\" "$PSScriptRoot" | Should -BeFalse
     }
 }
 
-describe "url_filename" {
-    it "should extract the real filename from an url" {
-        url_filename "http://example.org/foo.txt" | Should be "foo.txt"
-        url_filename "http://example.org/foo.txt?var=123" | Should be "foo.txt"
+Describe 'env add and remove path' -Tag 'Scoop', 'Windows' {
+    BeforeAll {
+        # test data
+        $manifest = @{
+            'env_add_path' = @('foo', 'bar', '.', '..')
+        }
+        $testdir = Join-Path $PSScriptRoot 'path-test-directory'
+        $global = $false
     }
 
-    it "can be tricked with a hash to override the real filename" {
-        url_filename "http://example.org/foo-v2.zip#/foo.zip" | Should be "foo.zip"
-    }
-}
-
-describe "url_remote_filename" {
-    it "should extract the real filename from an url" {
-        url_remote_filename "http://example.org/foo.txt" | Should be "foo.txt"
-        url_remote_filename "http://example.org/foo.txt?var=123" | Should be "foo.txt"
-    }
-
-    it "can not be tricked with a hash to override the real filename" {
-        url_remote_filename "http://example.org/foo-v2.zip#/foo.zip" | Should be "foo-v2.zip"
-    }
-}
-
-describe "is_in_dir" {
-    it "should work correctly" -skip:$isUnix {
-        is_in_dir "C:\test" "C:\foo" | Should be $false
-        is_in_dir "C:\test" "C:\test\foo\baz.zip" | Should be $true
-
-        is_in_dir "test" "$psscriptroot" | Should be $true
-        is_in_dir "$psscriptroot\..\" "$psscriptroot" | Should be $false
-    }
-}
-
-describe "env add and remove path" {
-    # test data
-    $manifest = @{
-        "env_add_path" = @("foo", "bar")
-    }
-    $testdir = join-path $psscriptroot "path-test-directory"
-    $global = $false
-
-    # store the original path to prevent leakage of tests
-    $origPath = $env:PATH
-
-    it "should concat the correct path" -skip:$isUnix {
-        mock add_first_in_path {}
-        mock remove_from_path {}
+    It 'should concat the correct path' {
+        Mock Add-Path {}
+        Mock Remove-Path {}
 
         # adding
         env_add_path $manifest $testdir $global
-        Assert-MockCalled add_first_in_path -Times 1 -ParameterFilter {$dir -like "$testdir\foo"}
-        Assert-MockCalled add_first_in_path -Times 1 -ParameterFilter {$dir -like "$testdir\bar"}
+        Should -Invoke -CommandName Add-Path -Times 1 -ParameterFilter { $Path -like "$testdir\foo" }
+        Should -Invoke -CommandName Add-Path -Times 1 -ParameterFilter { $Path -like "$testdir\bar" }
+        Should -Invoke -CommandName Add-Path -Times 1 -ParameterFilter { $Path -like $testdir }
+        Should -Invoke -CommandName Add-Path -Times 0 -ParameterFilter { $Path -like $PSScriptRoot }
 
         env_rm_path $manifest $testdir $global
-        Assert-MockCalled remove_from_path -Times 1 -ParameterFilter {$dir -like "$testdir\foo"}
-        Assert-MockCalled remove_from_path -Times 1 -ParameterFilter {$dir -like "$testdir\bar"}
+        Should -Invoke -CommandName Remove-Path -Times 1 -ParameterFilter { $Path -like "$testdir\foo" }
+        Should -Invoke -CommandName Remove-Path -Times 1 -ParameterFilter { $Path -like "$testdir\bar" }
+        Should -Invoke -CommandName Remove-Path -Times 1 -ParameterFilter { $Path -like $testdir }
+        Should -Invoke -CommandName Remove-Path -Times 0 -ParameterFilter { $Path -like $PSScriptRoot }
     }
 }
 
-describe "shim_def" {
-    it "should use strings correctly" {
-        $target, $name, $shimArgs = shim_def "command.exe"
-        $target | Should be "command.exe"
-        $name | Should be "command"
-        $shimArgs | Should be $null
+Describe 'shim_def' -Tag 'Scoop' {
+    It 'should use strings correctly' {
+        $target, $name, $shimArgs = shim_def 'command.exe'
+        $target | Should -Be 'command.exe'
+        $name | Should -Be 'command'
+        $shimArgs | Should -BeNullOrEmpty
     }
 
-    it "should expand the array correctly" {
-        $target, $name, $shimArgs = shim_def @("foo.exe", "bar")
-        $target | Should be "foo.exe"
-        $name | Should be "bar"
-        $shimArgs | Should be $null
+    It 'should expand the array correctly' {
+        $target, $name, $shimArgs = shim_def @('foo.exe', 'bar')
+        $target | Should -Be 'foo.exe'
+        $name | Should -Be 'bar'
+        $shimArgs | Should -BeNullOrEmpty
 
-        $target, $name, $shimArgs = shim_def @("foo.exe", "bar", "--test")
-        $target | Should be "foo.exe"
-        $name | Should be "bar"
-        $shimArgs | Should be "--test"
+        $target, $name, $shimArgs = shim_def @('foo.exe', 'bar', '--test')
+        $target | Should -Be 'foo.exe'
+        $name | Should -Be 'bar'
+        $shimArgs | Should -Be '--test'
     }
 }
 
-describe 'persist_def' {
-    it 'parses string correctly' {
-        $source, $target = persist_def "test"
-        $source | Should be "test"
-        $target | Should be "test"
+Describe 'persist_def' -Tag 'Scoop' {
+    It 'parses string correctly' {
+        $source, $target = persist_def 'test'
+        $source | Should -Be 'test'
+        $target | Should -Be 'test'
     }
 
-    it 'should strip directories of source for target' {
-        $source, $target = persist_def "foo/bar"
-        $source | Should be "foo/bar"
-        $target | Should be "bar"
+    It 'should handle sub-folder' {
+        $source, $target = persist_def 'foo/bar'
+        $source | Should -Be 'foo/bar'
+        $target | Should -Be 'foo/bar'
     }
 
-    it 'should handle arrays' {
+    It 'should handle arrays' {
         # both specified
-        $source, $target = persist_def @("foo", "bar")
-        $source | Should be "foo"
-        $target | Should be "bar"
+        $source, $target = persist_def @('foo', 'bar')
+        $source | Should -Be 'foo'
+        $target | Should -Be 'bar'
 
         # only first specified
-        $source, $target = persist_def @("foo")
-        $source | Should be "foo"
-        $target | Should be "foo"
+        $source, $target = persist_def @('foo')
+        $source | Should -Be 'foo'
+        $target | Should -Be 'foo'
 
         # null value specified
-        $source, $target = persist_def @("foo", $null)
-        $source | Should be "foo"
-        $target | Should be "foo"
+        $source, $target = persist_def @('foo', $null)
+        $source | Should -Be 'foo'
+        $target | Should -Be 'foo'
     }
 }
